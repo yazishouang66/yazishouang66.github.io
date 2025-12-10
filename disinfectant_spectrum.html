@@ -1,0 +1,1867 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>消毒水浓度光谱查询系统</title>
+    <!-- 引入外部库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #333;
+            line-height: 1.6;
+            background-attachment: fixed;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        
+        .section {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+        
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            font-weight: 400;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        /* 文件上传区域 */
+        .upload-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .file-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        #fileInput {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn:active {
+            transform: translateY(1px);
+        }
+        
+        .file-info {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        /* 图表区域 */
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+        
+        /* 查询区域 */
+        .query-section {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .query-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .query-input label {
+            font-weight: 500;
+            min-width: 80px;
+        }
+        
+        .query-input input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 150px;
+        }
+        
+        /* 结果表格 */
+        .results-section {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        th {
+            background-color: #3498db;
+            color: white;
+            font-weight: 500;
+        }
+        
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        /* 数据信息区域 */
+        .data-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .info-card {
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        
+        .info-card h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .info-card p {
+            font-size: 1.3em;
+            font-weight: 500;
+            color: #3498db;
+        }
+        
+        /* 错误信息 */
+        .error {
+            background-color: #e74c3c;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        /* 成功信息 */
+        .success {
+            background-color: #2ecc71;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        
+        /* 动态数据信息和图表容器样式 */
+        .data-info-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .single-data-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            background-color: #f0f4f8;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+        
+        .single-info-card {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .single-info-card h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .single-info-card p {
+            font-size: 1.3em;
+            font-weight: 500;
+            color: #3498db;
+        }
+        
+        .charts-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        
+        .single-chart-container {
+            background-color: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+        }
+        
+        .single-chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .chart-title {
+            color: #2c3e50;
+            font-size: 1.5em;
+            font-weight: 400;
+        }
+        
+        .chart-file-info {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .chart-wrapper {
+                height: 300px;
+            }
+            
+            .query-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .file-input-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .single-data-info {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>消毒水浓度光谱查询系统</h1>
+    </header>
+    
+    <div class="container">
+        <!-- 文件上传区域 -->
+        <section class="section">
+            <h2>1. 上传光谱数据文件</h2>
+            <div class="upload-section">
+                <div class="file-input-group">
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" multiple />
+                    <button class="btn" onclick="previewExcel()">预览并设置浓度</button>
+                    <button class="btn" onclick="clearAllData()">清除所有数据</button>
+                </div>
+                <div id="fileInfo" class="file-info" style="display: none;">
+                    <strong>文件信息：</strong>
+                    <span id="fileName"></span>
+                </div>
+                <div id="fileList" class="file-info" style="margin-top: 15px; display: none;">
+                    <strong>已选择文件：</strong>
+                    <ul id="selectedFilesList"></ul>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 浓度设置区域 -->
+        <section class="section" id="concentrationSection" style="display: none;">
+            <h2>2. 设置浓度值</h2>
+            <div id="concentrationInputs"></div>
+            <button class="btn" onclick="processData()">处理数据</button>
+        </section>
+        
+        <!-- 数据信息区域 -->
+        <section class="section">
+            <h2>2. 数据信息</h2>
+            <div id="dataInfoContainer" class="data-info-container">
+                <!-- 动态生成的数据信息行 -->
+            </div>
+        </section>
+        
+        <!-- 光谱曲线展示 -->
+        <section class="section">
+            <h2>3. 光谱曲线</h2>
+            
+            <!-- 浓度预测区域 -->
+            <div id="predictionSection" class="query-section" style="margin-bottom: 20px;">
+                <div class="query-input">
+                    <label for="predictionConcentration">预测浓度：</label>
+                    <input type="number" id="predictionConcentration" placeholder="输入要预测的浓度值" step="0.0001" min="0" />
+                    <button class="btn" onclick="addPredictionCurve()">添加预测曲线</button>
+                    <button class="btn" onclick="clearPredictions()">清除预测</button>
+                </div>
+            </div>
+            
+            <div id="chartsContainer" class="charts-container">
+                <!-- 动态生成的图表 -->
+            </div>
+        </section>
+    </div>
+    
+    <script>
+        // 全局变量
+        let spectrumData = []; // 存储多个文件的光谱数据，每个元素代表一个文件的数据
+        let charts = []; // 存储多个图表实例
+        let previewDataList = []; // 存储多个文件的预览数据
+        let predictionCurves = []; // 存储预测曲线数据
+        let allSelectedFiles = []; // 存储所有累积选中的文件
+        let processedFileIds = new Set(); // 用于跟踪已处理的文件，避免重复处理
+        
+        /**
+         * 生成文件唯一标识
+         * @param {File} file - 文件对象
+         * @returns {string} 文件唯一标识
+         */
+        function generateFileId(file) {
+            return `${file.name}_${file.size}_${file.lastModified}`;
+        }
+        
+        /**
+         * 初始化文件输入事件监听器
+         */
+        function initFileInputListener() {
+            const fileInput = document.getElementById('fileInput');
+            
+            fileInput.addEventListener('change', function(e) {
+                const files = e.target.files;
+                if (files.length === 0) {
+                    return;
+                }
+                
+                let addedFilesCount = 0;
+                
+                // 将新选择的文件添加到累积列表中
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const fileId = generateFileId(file);
+                    
+                    // 检查文件是否已存在
+                    const isDuplicate = allSelectedFiles.some(existingFile => {
+                        const existingFileId = generateFileId(existingFile);
+                        return existingFileId === fileId;
+                    });
+                    
+                    if (!isDuplicate) {
+                        allSelectedFiles.push(file);
+                        addedFilesCount++;
+                    }
+                }
+                
+                if (addedFilesCount > 0) {
+                    // 更新文件信息显示
+                    updateFileInfoDisplay();
+                    
+                    // 清空文件输入，允许再次选择相同文件
+                    fileInput.value = '';
+                }
+            });
+        }
+        
+        /**
+         * 更新文件信息显示
+         */
+        function updateFileInfoDisplay() {
+            // 更新文件总数显示
+            document.getElementById('fileName').textContent = `${allSelectedFiles.length} 个文件`;
+            document.getElementById('fileInfo').style.display = 'block';
+            
+            // 更新文件列表显示
+            const fileList = document.getElementById('fileList');
+            const selectedFilesList = document.getElementById('selectedFilesList');
+            
+            selectedFilesList.innerHTML = '';
+            
+            allSelectedFiles.forEach((file, index) => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${index + 1}. ${file.name}`;
+                selectedFilesList.appendChild(listItem);
+            });
+            
+            fileList.style.display = 'block';
+        }
+        
+        /**
+         * 预览Excel文件，生成浓度输入框
+         */
+        function previewExcel() {
+            if (allSelectedFiles.length === 0) {
+                showMessage('请选择Excel文件', 'error');
+                return;
+            }
+            
+            // 更新文件信息显示
+            updateFileInfoDisplay();
+            
+            // 读取所有未处理的文件
+            let newFilesCount = 0;
+            for (let i = 0; i < allSelectedFiles.length; i++) {
+                const file = allSelectedFiles[i];
+                const fileId = generateFileId(file);
+                
+                // 跳过已处理的文件
+                if (!processedFileIds.has(fileId)) {
+                    readExcelFile(file, previewDataList.length);
+                    processedFileIds.add(fileId);
+                    newFilesCount++;
+                }
+            }
+            
+            if (newFilesCount === 0) {
+                showMessage('所有选中文件已处理，请添加新文件', 'info');
+            }
+        }
+        
+        /**
+         * 读取单个Excel文件
+         * @param {File} file - Excel文件
+         * @param {number} fileIndex - 文件索引
+         */
+        function readExcelFile(file, fileIndex) {
+            // 显示当前处理的文件信息
+            console.log(`正在处理文件 ${fileIndex + 1}: ${file.name}`);
+            
+            // 读取文件
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // 获取第一个工作表
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // 增强的Excel数据转换，支持多种格式
+                    let jsonData = [];
+                    try {
+                        // 尝试多种转换策略
+                        const conversionStrategies = [
+                            { header: 1, name: 'header:1' },
+                            { header: undefined, name: '无header' },
+                            { header: 0, name: 'header:0' }
+                        ];
+                        
+                        let successfulStrategy = null;
+                        
+                        for (const strategy of conversionStrategies) {
+                            try {
+                                console.log(`尝试转换策略：${strategy.name}`);
+                                const testData = XLSX.utils.sheet_to_json(worksheet, strategy);
+                                
+                                if (testData && testData.length > 0) {
+                                    jsonData = testData;
+                                    successfulStrategy = strategy.name;
+                                    console.log(`${strategy.name}转换成功，数据长度：${jsonData.length}`);
+                                    break;
+                                }
+                            } catch (e) {
+                                console.warn(`${strategy.name}转换失败：`, e.message);
+                            }
+                        }
+                        
+                        if (jsonData.length === 0) {
+                            throw new Error('所有转换策略均失败');
+                        }
+                        
+                        console.log(`使用${successfulStrategy}转换的Excel数据：`, jsonData.slice(0, 10));
+                    } catch (e) {
+                        console.error('Excel转换失败：', e);
+                        throw new Error('Excel数据转换失败：' + e.message);
+                    }
+                    
+                    // 智能检测数据结构
+                    const dataStructure = detectDataStructure(jsonData);
+                    console.log('检测到的数据结构：', dataStructure);
+                    
+                    // 处理不同的数据结构
+                    let processedData = null;
+                    let absorbanceColumnCount = 0;
+                    
+                    if (dataStructure.type === 'column_based') {
+                        // 传统的基于列的数据结构：第一列是波长，后续列是吸光度
+                        processedData = jsonData;
+                        const firstRow = Array.isArray(jsonData[0]) ? jsonData[0] : Object.values(jsonData[0]);
+                        absorbanceColumnCount = Math.max(0, firstRow.length - 1);
+                    } else if (dataStructure.type === 'row_based') {
+                        // 基于行的数据结构：每行代表一个浓度
+                        processedData = convertRowBasedToColumnBased(jsonData);
+                        absorbanceColumnCount = processedData[0].length - 1;
+                    } else {
+                        // 默认处理
+                        processedData = jsonData;
+                        const firstRow = Array.isArray(jsonData[0]) ? jsonData[0] : Object.values(jsonData[0]);
+                        absorbanceColumnCount = Math.max(0, firstRow.length - 1);
+                    }
+                    
+                    if (absorbanceColumnCount === 0) {
+                        showMessage(`文件 ${file.name} 中未找到吸光度列，请确保数据格式正确`, 'error');
+                        return;
+                    }
+                    
+                    // 保存预览数据
+                    previewDataList.push({
+                        file: file,
+                        fileIndex: fileIndex,
+                        data: processedData,
+                        absorbanceColumnCount: absorbanceColumnCount
+                    });
+                    
+                    // 生成浓度输入框
+                    generateMultiFileConcentrationInputs();
+                    
+                    // 显示浓度设置区域
+                    document.getElementById('concentrationSection').style.display = 'block';
+                    
+                    showMessage(`文件 ${file.name} 预览成功，发现 ${absorbanceColumnCount} 列吸光度数据`, 'success');
+                } catch (error) {
+                    showMessage(`文件 ${file.name} 解析失败：${error.message}`, 'error');
+                    console.error('文件解析错误：', error);
+                }
+            };
+            
+            reader.onerror = function() {
+                showMessage(`文件 ${file.name} 读取失败`, 'error');
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+        
+        /**
+         * 智能检测数据结构
+         * @param {Array} jsonData - 转换后的JSON数据
+         * @returns {Object} 数据结构信息
+         */
+        function detectDataStructure(jsonData) {
+            if (jsonData.length === 0) {
+                return { type: 'unknown' };
+            }
+            
+            const firstItem = jsonData[0];
+            
+            // 检查是否为数组类型（header:1转换结果）
+            if (Array.isArray(firstItem)) {
+                // 检查是否为基于列的数据结构
+                if (firstItem.length >= 2) {
+                    // 检查第一列是否为数字（波长）
+                    const potentialWavelength = parseFloat(firstItem[0]);
+                    if (!isNaN(potentialWavelength)) {
+                        return { type: 'column_based' };
+                    }
+                }
+            }
+            
+            // 检查是否为对象类型（无header转换结果）
+            if (typeof firstItem === 'object' && firstItem !== null) {
+                const keys = Object.keys(firstItem);
+                
+                // 检查是否包含波长相关的键
+                const hasWavelengthKey = keys.some(key => 
+                    key.toLowerCase().includes('波长') || 
+                    key.toLowerCase().includes('wavelength') ||
+                    key.toLowerCase().includes('λ')
+                );
+                
+                // 检查是否包含浓度相关的键
+                const hasConcentrationKey = keys.some(key => 
+                    key.toLowerCase().includes('浓度') || 
+                    key.toLowerCase().includes('concentration') ||
+                    key.toLowerCase().includes('c')
+                );
+                
+                // 检查是否包含吸光度相关的键
+                const hasAbsorbanceKey = keys.some(key => 
+                    key.toLowerCase().includes('吸光度') || 
+                    key.toLowerCase().includes('absorbance') ||
+                    key.toLowerCase().includes('a')
+                );
+                
+                if (hasWavelengthKey && hasConcentrationKey && hasAbsorbanceKey) {
+                    return { type: 'row_based' };
+                }
+            }
+            
+            return { type: 'column_based' }; // 默认假设为基于列的数据结构
+        }
+        
+        /**
+         * 将基于行的数据结构转换为基于列的数据结构
+         * @param {Array} rowBasedData - 基于行的数据
+         * @returns {Array} 基于列的数据
+         */
+        function convertRowBasedToColumnBased(rowBasedData) {
+            // 这里实现简单的转换，实际项目中需要更复杂的逻辑
+            // 假设数据格式为：[{波长: 200, 浓度: 0.1, 吸光度: 0.2}, ...]
+            
+            // 提取所有唯一波长
+            const wavelengths = [...new Set(rowBasedData.map(item => parseFloat(item[Object.keys(item)[0]])))];
+            wavelengths.sort((a, b) => a - b);
+            
+            // 提取所有唯一浓度
+            const concentrations = [...new Set(rowBasedData.map(item => item[Object.keys(item)[1]]))];
+            
+            // 创建基于列的数据结构
+            const columnBasedData = [];
+            
+            // 创建表头
+            const header = ['波长', ...concentrations];
+            columnBasedData.push(header);
+            
+            // 填充数据行
+            wavelengths.forEach(wavelength => {
+                const row = [wavelength];
+                
+                concentrations.forEach(concentration => {
+                    // 查找对应的数据点
+                    const dataPoint = rowBasedData.find(item => 
+                        parseFloat(item[Object.keys(item)[0]]) === wavelength && 
+                        item[Object.keys(item)[1]] === concentration
+                    );
+                    
+                    if (dataPoint) {
+                        row.push(dataPoint[Object.keys(item)[2]]);
+                    } else {
+                        row.push(null);
+                    }
+                });
+                
+                columnBasedData.push(row);
+            });
+            
+            return columnBasedData;
+        }
+        
+        /**
+         * 从文件名中提取浓度值
+         * @param {string} filename - 文件名
+         * @returns {string} 提取的浓度值
+         */
+        function extractConcentrationFromFilename(filename) {
+            // 使用正则表达式从文件名中提取数字部分
+            const match = filename.match(/([0-9]+(?:\.[0-9]+)?)/);
+            return match ? match[1] : '';
+        }
+        
+        /**
+         * 线性回归函数
+         * @param {Array} x - 自变量数组（浓度）
+         * @param {Array} y - 因变量数组（吸光度）
+         * @returns {Object} 回归结果，包含斜率、截距和相关系数
+         */
+        function linearRegression(x, y) {
+            const n = x.length;
+            if (n === 0) {
+                return { slope: 0, intercept: 0, r2: 0 };
+            }
+            
+            // 计算平均值
+            const xMean = x.reduce((sum, value) => sum + value, 0) / n;
+            const yMean = y.reduce((sum, value) => sum + value, 0) / n;
+            
+            // 计算斜率和截距
+            let numerator = 0;
+            let denominator = 0;
+            let ssTot = 0;
+            let ssRes = 0;
+            
+            for (let i = 0; i < n; i++) {
+                const xDiff = x[i] - xMean;
+                const yDiff = y[i] - yMean;
+                
+                numerator += xDiff * yDiff;
+                denominator += xDiff * xDiff;
+                ssTot += yDiff * yDiff;
+            }
+            
+            const slope = denominator === 0 ? 0 : numerator / denominator;
+            const intercept = yMean - slope * xMean;
+            
+            // 计算相关系数R²
+            for (let i = 0; i < n; i++) {
+                const yPred = slope * x[i] + intercept;
+                const yDiff = y[i] - yPred;
+                ssRes += yDiff * yDiff;
+            }
+            
+            const r2 = ssTot === 0 ? 1 : 1 - (ssRes / ssTot);
+            
+            return { slope, intercept, r2 };
+        }
+        
+        /**
+         * 预测指定浓度下的吸光度
+         * @param {number} targetConcentration - 目标浓度
+         * @returns {Array} 预测的吸光度数据
+         */
+        function predictAbsorbance(targetConcentration) {
+            if (!Array.isArray(spectrumData) || spectrumData.length < 2) {
+                showMessage('需要至少两个浓度的数据才能进行预测', 'error');
+                return null;
+            }
+            
+            // 获取所有波长（使用第一个文件的波长作为参考）
+            const referenceWavelengths = spectrumData[0].wavelengths;
+            const predictedAbsorbance = [];
+            
+            // 对每个波长分别进行预测
+            for (let wavelengthIndex = 0; wavelengthIndex < referenceWavelengths.length; wavelengthIndex++) {
+                const wavelength = referenceWavelengths[wavelengthIndex];
+                const concentrations = [];
+                const absorbances = [];
+                
+                // 收集所有文件在该波长下的浓度和吸光度
+                spectrumData.forEach(fileData => {
+                    if (fileData.wavelengths && fileData.absorbance) {
+                        // 查找当前文件中最接近的波长索引
+                        const index = findNearestIndex(fileData.wavelengths, wavelength);
+                        const absorbance = fileData.absorbance[index];
+                        if (absorbance !== null && !isNaN(absorbance)) {
+                            concentrations.push(parseFloat(fileData.concentration));
+                            absorbances.push(absorbance);
+                        }
+                    }
+                });
+                
+                // 确保有足够的数据点进行回归
+                if (concentrations.length < 2) {
+                    predictedAbsorbance.push(null);
+                    continue;
+                }
+                
+                // 进行线性回归
+                const regressionResult = linearRegression(concentrations, absorbances);
+                
+                // 预测吸光度
+                const predictedValue = regressionResult.slope * targetConcentration + regressionResult.intercept;
+                predictedAbsorbance.push(predictedValue);
+            }
+            
+            return predictedAbsorbance;
+        }
+        
+        /**
+         * 添加预测曲线
+         */
+        function addPredictionCurve() {
+            // 获取用户输入的预测浓度
+            const predictionInput = document.getElementById('predictionConcentration');
+            const targetConcentration = parseFloat(predictionInput.value);
+            
+            // 验证输入
+            if (isNaN(targetConcentration) || targetConcentration < 0) {
+                showMessage('请输入有效的预测浓度值', 'error');
+                return;
+            }
+            
+            // 获取预测的吸光度数据
+            const predictedAbsorbance = predictAbsorbance(targetConcentration);
+            if (!predictedAbsorbance) {
+                return;
+            }
+            
+            // 创建预测曲线数据对象
+            const predictionData = {
+                concentration: targetConcentration,
+                absorbance: predictedAbsorbance
+            };
+            
+            // 将预测曲线添加到数组中
+            predictionCurves.push(predictionData);
+            
+            // 重新绘制图表
+            drawSpectrumChart();
+            
+            // 保存数据到localStorage
+            saveDataToLocalStorage();
+            
+            showMessage(`成功添加浓度 ${targetConcentration} 的预测曲线`, 'success');
+        }
+        
+        /**
+         * 清除所有预测曲线
+         */
+        function clearPredictions() {
+            // 清空预测曲线数组
+            predictionCurves = [];
+            
+            // 重新绘制图表
+            drawSpectrumChart();
+            
+            // 保存数据到localStorage
+            saveDataToLocalStorage();
+            
+            showMessage('已清除所有预测曲线', 'success');
+        }
+        
+        /**
+         * 生成多文件浓度输入框
+         */
+        function generateMultiFileConcentrationInputs() {
+            const container = document.getElementById('concentrationInputs');
+            container.innerHTML = '';
+            
+            // 创建表格
+            const table = document.createElement('table');
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        <th>文件名称</th>
+                        <th>浓度值（自动提取）</th>
+                    </tr>
+                </thead>
+                <tbody id="concentrationTableBody"></tbody>
+            `;
+            
+            const tbody = table.querySelector('#concentrationTableBody');
+            
+            // 为每个文件生成输入行
+            previewDataList.forEach((previewItem, index) => {
+                const file = previewItem.file;
+                // 从文件名提取浓度值
+                const concentration = extractConcentrationFromFilename(file.name);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${file.name}</td>
+                    <td><input type="text" class="concentration-input" value="${concentration}" placeholder="输入浓度值" data-file-index="${index}"></td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            container.appendChild(table);
+        }
+        
+        /**
+         * 处理最终数据，结合手动输入的浓度值
+         */
+        function processData() {
+            if (previewDataList.length === 0) {
+                showMessage('请先预览Excel文件', 'error');
+                return;
+            }
+            
+            // 获取所有浓度输入
+            const inputs = document.querySelectorAll('.concentration-input');
+            
+            // 清空现有数据
+            spectrumData = [];
+            
+            // 销毁现有图表
+            charts.forEach(chart => {
+                chart.destroy();
+            });
+            charts = [];
+            
+            // 处理每个文件的数据
+            let totalProcessed = 0;
+            for (let i = 0; i < previewDataList.length; i++) {
+                const previewItem = previewDataList[i];
+                const input = inputs[i];
+                
+                if (!input) {
+                    continue;
+                }
+                
+                const concentrationValue = input.value.trim();
+                if (concentrationValue === '') {
+                    showMessage('请为所有文件输入浓度值', 'error');
+                    return;
+                }
+                
+                // 使用手动输入的浓度值解析当前文件数据
+                const fileData = parseSpectrumDataWithManualConcentrations(previewItem.data, [concentrationValue]);
+                
+                // 为每个文件创建独立的数据对象
+                const singleFileData = {
+                    index: i + 1,
+                    filename: previewItem.file.name,
+                    concentration: concentrationValue,
+                    wavelengths: fileData.wavelengths,
+                    absorbance: fileData.absorbanceData[concentrationValue] || []
+                };
+                
+                // 添加到全局数据数组中
+                spectrumData.push(singleFileData);
+                totalProcessed++;
+            }
+            
+            // 检查数据是否解析成功
+            if (spectrumData.length > 0) {
+                // 绘制光谱曲线 - 每个文件一个图表
+                drawSpectrumChart();
+                
+                // 更新数据信息 - 每个文件一行
+                updateDataInfo();
+                
+                // 保存数据到localStorage
+                saveDataToLocalStorage();
+                
+                showMessage(`成功处理 ${totalProcessed} 个文件`, 'success');
+            } else {
+                console.warn('光谱数据解析后无效，跳过曲线绘制');
+                console.log('最终光谱数据：', spectrumData);
+            }
+        }
+        
+        /**
+         * 带手动浓度值的光谱数据解析
+         * @param {Array} jsonData - 从Excel读取的JSON数据
+         * @param {Array} manualConcentrations - 手动输入的浓度值
+         * @returns {Object} 解析后的光谱数据
+         */
+        function parseSpectrumDataWithManualConcentrations(jsonData, manualConcentrations) {
+            try {
+                // 创建新的数据对象，不直接修改全局变量
+                const newSpectrumData = {
+                    wavelengths: [],
+                    concentrations: manualConcentrations,
+                    absorbanceData: {}
+                };
+                
+                // 初始化吸光度数据对象
+                manualConcentrations.forEach(concentration => {
+                    newSpectrumData.absorbanceData[concentration] = [];
+                });
+                
+                // 解析数据行
+                let validDataRows = 0;
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    
+                    // 更严格的行验证
+                    if (!Array.isArray(row)) {
+                        console.warn(`跳过无效行 ${i + 1}：不是数组`);
+                        continue;
+                    }
+                    
+                    if (row.length === 0) {
+                        console.warn(`跳过空行 ${i + 1}`);
+                        continue;
+                    }
+                    
+                    // 解析波长（第一列）
+                    const wavelengthCell = row[0];
+                    if (wavelengthCell == null) {
+                        console.warn(`跳过行 ${i + 1}：波长为空`);
+                        continue;
+                    }
+                    
+                    const wavelength = parseFloat(wavelengthCell);
+                    if (isNaN(wavelength)) {
+                        console.warn(`跳过行 ${i + 1}：无效波长值 "${wavelengthCell}"`);
+                        continue;
+                    }
+                    
+                    newSpectrumData.wavelengths.push(wavelength);
+                    validDataRows++;
+                    
+                    // 解析各浓度的吸光度（从第二列开始）
+                    for (let j = 1; j < row.length; j++) {
+                        const concentrationIndex = j - 1;
+                        if (concentrationIndex >= manualConcentrations.length) break;
+                        
+                        const absorbanceCell = row[j];
+                        let absorbance = null;
+                        
+                        if (absorbanceCell != null) {
+                            absorbance = parseFloat(absorbanceCell);
+                            if (isNaN(absorbance)) {
+                                absorbance = null;
+                                console.warn(`行 ${i + 1} 浓度 ${manualConcentrations[concentrationIndex]}：无效吸光度值 "${absorbanceCell}"`);
+                            }
+                        }
+                        
+                        const concentration = manualConcentrations[concentrationIndex];
+                        newSpectrumData.absorbanceData[concentration].push(absorbance);
+                    }
+                    
+                    // 确保所有浓度都有数据点（处理行数不足的情况）
+                    for (let j = row.length; j <= manualConcentrations.length; j++) {
+                        const concentrationIndex = j - 1;
+                        if (concentrationIndex >= manualConcentrations.length) break;
+                        
+                        const concentration = manualConcentrations[concentrationIndex];
+                        newSpectrumData.absorbanceData[concentration].push(null);
+                        console.warn(`行 ${i + 1} 浓度 ${concentration}：添加空数据点`);
+                    }
+                }
+                
+                if (validDataRows === 0) {
+                    console.error('未找到有效光谱数据行');
+                    showMessage('未找到有效光谱数据行，请检查Excel文件格式', 'error');
+                    return {
+                        wavelengths: [],
+                        concentrations: [],
+                        absorbanceData: {}
+                    };
+                }
+                
+                // 添加调试信息
+                console.log('解析后的数据：', {
+                    wavelengths: newSpectrumData.wavelengths.length,
+                    validDataRows: validDataRows,
+                    concentrations: newSpectrumData.concentrations,
+                    firstWavelength: newSpectrumData.wavelengths[0],
+                    lastWavelength: newSpectrumData.wavelengths[newSpectrumData.wavelengths.length - 1]
+                });
+                
+                // 验证数据完整性
+                console.log('各浓度数据长度：');
+                Object.keys(newSpectrumData.absorbanceData).forEach(key => {
+                    console.log(`${key}: ${newSpectrumData.absorbanceData[key].length}`);
+                });
+                
+                showMessage(`成功解析 ${validDataRows} 行数据，包含 ${manualConcentrations.length} 种浓度`, 'success');
+                
+                return newSpectrumData;
+            } catch (error) {
+                console.error('解析光谱数据时出错：', error);
+                showMessage('解析光谱数据失败：' + error.message, 'error');
+                return {
+                    wavelengths: [],
+                    concentrations: [],
+                    absorbanceData: {}
+                };
+            }
+        }
+        
+        /**
+         * 合并新光谱数据到现有数据中
+         * @param {Object} newData - 新解析的光谱数据
+         */
+        function mergeSpectrumData(newData) {
+            if (!newData || newData.wavelengths.length === 0 || newData.concentrations.length === 0) {
+                console.error('新数据无效，无法合并');
+                return;
+            }
+            
+            // 检查波长是否匹配 - 使用容差比较
+            const tolerance = 0.1; // 0.1nm容差，允许浮点数精度差异
+            const wavelengthMatch = newData.wavelengths.length === spectrumData.wavelengths.length && 
+                                  newData.wavelengths.every((w, i) => {
+                                      const existingWavelength = spectrumData.wavelengths[i];
+                                      // 使用容差比较替代精确匹配
+                                      return Math.abs(w - existingWavelength) < tolerance;
+                                  });
+            
+            if (!wavelengthMatch) {
+                // 检查波长范围是否相似
+                const newMinWavelength = Math.min(...newData.wavelengths);
+                const newMaxWavelength = Math.max(...newData.wavelengths);
+                const existingMinWavelength = Math.min(...spectrumData.wavelengths);
+                const existingMaxWavelength = Math.max(...spectrumData.wavelengths);
+                
+                // 检查波长范围是否大致相同
+                const rangeSimilar = Math.abs(newMinWavelength - existingMinWavelength) < 1 && 
+                                  Math.abs(newMaxWavelength - existingMaxWavelength) < 1 &&
+                                  Math.abs(newData.wavelengths.length - spectrumData.wavelengths.length) < 5;
+                
+                if (rangeSimilar) {
+                    console.warn('新数据的波长与现有数据略有差异，但范围相似，将尝试合并');
+                    // 仍允许合并，使用现有波长数据
+                    console.log('使用现有波长数据进行合并');
+                } else {
+                    console.warn('新数据的波长与现有数据不匹配，将替换现有数据');
+                    spectrumData = newData;
+                    return;
+                }
+            }
+            
+            // 合并浓度数据
+            const existingConcentrations = new Set(spectrumData.concentrations);
+            const newConcentrations = newData.concentrations.filter(c => !existingConcentrations.has(c));
+            
+            if (newConcentrations.length === 0) {
+                console.warn('没有新的浓度数据需要合并');
+                showMessage('没有新的浓度数据需要合并', 'warning');
+                return;
+            }
+            
+            // 添加新的浓度和吸光度数据
+            newConcentrations.forEach(concentration => {
+                // 添加到浓度列表
+                spectrumData.concentrations.push(concentration);
+                // 添加吸光度数据
+                spectrumData.absorbanceData[concentration] = newData.absorbanceData[concentration] || [];
+            });
+            
+            console.log('数据合并成功：', {
+                existingConcentrations: spectrumData.concentrations.length - newConcentrations.length,
+                newConcentrations: newConcentrations.length,
+                totalConcentrations: spectrumData.concentrations.length
+            });
+        }
+        
+        /**
+         * 解析光谱数据
+         * @param {Array} jsonData - 从Excel读取的JSON数据
+         */
+        function parseSpectrumData(jsonData) {
+            try {
+                // 保留现有数据，实现新增功能
+                // 只在数据为空时初始化
+                if (!spectrumData || spectrumData.wavelengths.length === 0) {
+                    spectrumData = {
+                        wavelengths: [],
+                        concentrations: [],
+                        absorbanceData: {}
+                    };
+                }
+                
+                // 添加调试信息
+                console.log('原始JSON数据：', jsonData.slice(0, 5)); // 只显示前5行数据
+                
+                // 验证JSON数据格式 - 分步验证
+                if (!Array.isArray(jsonData)) {
+                    console.error('无效的Excel数据格式：不是数组');
+                    showMessage('Excel数据格式无效，请确保包含波长和吸光度数据', 'error');
+                    return;
+                }
+                
+                if (jsonData.length < 2) {
+                    console.error('无效的Excel数据格式：数据行数不足（至少需要2行）');
+                    showMessage('Excel数据格式无效，至少需要包含表头和一行数据', 'error');
+                    return;
+                }
+                
+                // 假设数据格式：第一列为波长，后续列为不同浓度的吸光度
+                // 第一行包含浓度标签
+                const headerRow = jsonData[0];
+                
+                // 验证表头是否为数组
+                if (!Array.isArray(headerRow)) {
+                    console.error('无效的Excel表头：不是数组');
+                    showMessage('Excel表头格式无效，请检查文件结构', 'error');
+                    return;
+                }
+                
+                // 提取浓度标签（跳过第一列，第一列是波长）
+                const concentrations = [];
+                for (let j = 1; j < headerRow.length; j++) {
+                    const label = headerRow[j];
+                    // 更健壮的标签处理
+                    let labelStr = '';
+                    if (label == null) continue;
+                    
+                    if (typeof label === 'string') {
+                        labelStr = label.trim();
+                    } else {
+                        labelStr = String(label).trim();
+                    }
+                    
+                    if (labelStr !== '') {
+                        concentrations.push(labelStr);
+                    }
+                }
+                
+                if (concentrations.length === 0) {
+                    console.error('未找到有效浓度标签');
+                    showMessage('未找到有效浓度标签，请检查Excel文件第一行', 'error');
+                    return;
+                }
+                
+                console.log('提取的浓度标签：', concentrations);
+                
+                const wavelengths = [];
+                const absorbanceData = {};
+                
+                // 初始化吸光度数据对象
+                concentrations.forEach(concentration => {
+                    absorbanceData[concentration] = [];
+                });
+                
+                // 解析数据行
+                let validDataRows = 0;
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    
+                    // 更严格的行验证
+                    if (!Array.isArray(row)) {
+                        console.warn(`跳过无效行 ${i + 1}：不是数组`);
+                        continue;
+                    }
+                    
+                    if (row.length === 0) {
+                        console.warn(`跳过空行 ${i + 1}`);
+                        continue;
+                    }
+                    
+                    // 解析波长（第一列）
+                    const wavelengthCell = row[0];
+                    if (wavelengthCell == null) {
+                        console.warn(`跳过行 ${i + 1}：波长为空`);
+                        continue;
+                    }
+                    
+                    const wavelength = parseFloat(wavelengthCell);
+                    if (isNaN(wavelength)) {
+                        console.warn(`跳过行 ${i + 1}：无效波长值 "${wavelengthCell}"`);
+                        continue;
+                    }
+                    
+                    wavelengths.push(wavelength);
+                    validDataRows++;
+                    
+                    // 解析各浓度的吸光度（从第二列开始）
+                    for (let j = 1; j < row.length; j++) {
+                        const concentrationIndex = j - 1;
+                        if (concentrationIndex >= concentrations.length) break;
+                        
+                        const absorbanceCell = row[j];
+                        let absorbance = null;
+                        
+                        if (absorbanceCell != null) {
+                            absorbance = parseFloat(absorbanceCell);
+                            if (isNaN(absorbance)) {
+                                absorbance = null;
+                                console.warn(`行 ${i + 1} 浓度 ${concentrations[concentrationIndex]}：无效吸光度值 "${absorbanceCell}"`);
+                            }
+                        }
+                        
+                        const concentration = concentrations[concentrationIndex];
+                        absorbanceData[concentration].push(absorbance);
+                    }
+                    
+                    // 确保所有浓度都有数据点（处理行数不足的情况）
+                    for (let j = row.length; j <= concentrations.length; j++) {
+                        const concentrationIndex = j - 1;
+                        if (concentrationIndex >= concentrations.length) break;
+                        
+                        const concentration = concentrations[concentrationIndex];
+                        absorbanceData[concentration].push(null);
+                        console.warn(`行 ${i + 1} 浓度 ${concentration}：添加空数据点`);
+                    }
+                }
+                
+                if (validDataRows === 0) {
+                    console.error('未找到有效光谱数据行');
+                    showMessage('未找到有效光谱数据行，请检查Excel文件格式', 'error');
+                    return;
+                }
+                
+                // 合并数据到现有数据中
+                // 检查波长是否匹配
+                const tolerance = 0.1; // 0.1nm容差
+                const wavelengthMatch = spectrumData.wavelengths.length === wavelengths.length && 
+                                      spectrumData.wavelengths.every((w, i) => {
+                                          return Math.abs(w - wavelengths[i]) < tolerance;
+                                      });
+                
+                if (wavelengthMatch) {
+                    // 波长匹配，合并浓度数据
+                    concentrations.forEach(concentration => {
+                        // 检查浓度是否已存在
+                        if (!spectrumData.absorbanceData[concentration]) {
+                            // 添加新浓度
+                            spectrumData.concentrations.push(concentration);
+                            spectrumData.absorbanceData[concentration] = absorbanceData[concentration];
+                        } else {
+                            console.warn(`浓度 ${concentration} 已存在，跳过`);
+                        }
+                    });
+                } else {
+                    // 波长不匹配，替换现有数据
+                    console.warn('新数据的波长与现有数据不匹配，将替换现有数据');
+                    spectrumData = {
+                        wavelengths: wavelengths,
+                        concentrations: concentrations,
+                        absorbanceData: absorbanceData
+                    };
+                }
+                
+                // 添加调试信息
+                console.log('解析后的数据：', {
+                    wavelengths: spectrumData.wavelengths.length,
+                    validDataRows: validDataRows,
+                    concentrations: spectrumData.concentrations,
+                    firstWavelength: spectrumData.wavelengths[0],
+                    lastWavelength: spectrumData.wavelengths[spectrumData.wavelengths.length - 1]
+                });
+                
+                // 验证数据完整性
+                console.log('各浓度数据长度：');
+                Object.keys(spectrumData.absorbanceData).forEach(key => {
+                    console.log(`${key}: ${spectrumData.absorbanceData[key].length}`);
+                });
+                
+                showMessage(`成功解析 ${validDataRows} 行数据，包含 ${concentrations.length} 种浓度，当前总浓度数：${spectrumData.concentrations.length}`, 'success');
+            } catch (error) {
+                console.error('解析光谱数据时出错：', error);
+                showMessage('解析光谱数据失败：' + error.message, 'error');
+            }
+        }
+        
+        /**
+         * 绘制光谱曲线
+         */
+        function drawSpectrumChart() {
+            try {
+                // 清空图表容器
+                const chartsContainer = document.getElementById('chartsContainer');
+                chartsContainer.innerHTML = '';
+                
+                // 验证数据完整性
+                if (!Array.isArray(spectrumData) || spectrumData.length === 0) {
+                    console.error('光谱数据不完整');
+                    showMessage('光谱数据不完整，无法绘制曲线', 'error');
+                    return;
+                }
+                
+                console.log('完整光谱数据数组：', spectrumData);
+                
+                // 创建图表容器
+                const chartContainer = document.createElement('div');
+                chartContainer.className = 'single-chart-container';
+                
+                // 创建图表标题
+                const chartHeader = document.createElement('div');
+                chartHeader.className = 'single-chart-header';
+                
+                const chartTitle = document.createElement('h3');
+                chartTitle.className = 'chart-title';
+                chartTitle.textContent = '光谱曲线对比';
+                
+                chartHeader.appendChild(chartTitle);
+                
+                // 创建Canvas元素
+                const canvasWrapper = document.createElement('div');
+                canvasWrapper.className = 'chart-wrapper';
+                
+                const canvas = document.createElement('canvas');
+                canvas.id = 'spectrumChart';
+                canvasWrapper.appendChild(canvas);
+                
+                // 组装图表容器
+                chartContainer.appendChild(chartHeader);
+                chartContainer.appendChild(canvasWrapper);
+                chartsContainer.appendChild(chartContainer);
+                
+                // 获取Canvas上下文
+                const ctx = canvas.getContext('2d');
+                
+                // 准备图表数据
+                const datasets = [];
+                const colors = [
+                    '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
+                    '#1abc9c', '#e67e22', '#34495e', '#95a5a6', '#d35400'
+                ];
+                
+                // 遍历所有文件数据，创建多个数据集（原始数据）
+                spectrumData.forEach((fileData, fileIndex) => {
+                    console.log(`处理文件 ${fileIndex + 1} 的数据：`, fileData);
+                    
+                    // 验证单个文件数据完整性
+                    if (!fileData.wavelengths || fileData.wavelengths.length === 0) {
+                        console.warn(`文件 ${fileIndex + 1} 数据不完整，跳过数据集创建`);
+                        return;
+                    }
+                    
+                    // 准备数据集
+                    const validPoints = [];
+                    for (let i = 0; i < fileData.wavelengths.length; i++) {
+                        const wavelength = fileData.wavelengths[i];
+                        const absorbance = fileData.absorbance[i];
+                        
+                        if (absorbance !== null && !isNaN(absorbance)) {
+                            validPoints.push({ x: wavelength, y: absorbance });
+                        }
+                    }
+                    
+                    console.log(`文件 ${fileIndex + 1} 有效数据点数量：${validPoints.length}`);
+                    
+                    // 创建数据集，使用文件名和浓度作为标签
+                    const dataset = {
+                        label: `${fileData.filename} (${fileData.concentration})`,
+                        data: validPoints,
+                        borderColor: colors[fileIndex % colors.length],
+                        backgroundColor: colors[fileIndex % colors.length] + '20', // 20% opacity
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 5
+                    };
+                    
+                    datasets.push(dataset);
+                });
+                
+                // 遍历所有预测曲线数据，创建预测曲线数据集
+                predictionCurves.forEach((predictionData, predictionIndex) => {
+                    console.log(`处理预测曲线 ${predictionIndex + 1}：`, predictionData);
+                    
+                    // 准备预测曲线数据集
+                    const validPoints = [];
+                    const referenceWavelengths = spectrumData[0].wavelengths;
+                    for (let i = 0; i < referenceWavelengths.length; i++) {
+                        const wavelength = referenceWavelengths[i];
+                        const absorbance = predictionData.absorbance[i];
+                        
+                        if (absorbance !== null && !isNaN(absorbance)) {
+                            validPoints.push({ x: wavelength, y: absorbance });
+                        }
+                    }
+                    
+                    console.log(`预测曲线 ${predictionIndex + 1} 有效数据点数量：${validPoints.length}`);
+                    
+                    // 创建预测曲线数据集，使用不同颜色和虚线样式
+                    const dataset = {
+                        label: `预测曲线 (${predictionData.concentration})`,
+                        data: validPoints,
+                        borderColor: colors[(spectrumData.length + predictionIndex) % colors.length],
+                        backgroundColor: colors[(spectrumData.length + predictionIndex) % colors.length] + '10', // 10% opacity
+                        borderWidth: 2,
+                        borderDash: [5, 5], // 虚线样式
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 5
+                    };
+                    
+                    datasets.push(dataset);
+                });
+                
+                // 添加调试信息
+                console.log('合并后的图表数据集：', datasets);
+                
+                // 创建图表 - 包含所有数据集
+                const chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    usePointStyle: true,
+                                    padding: 20
+                                }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    title: function(context) {
+                                        return `波长: ${context[0].raw.x} nm`;
+                                    },
+                                    label: function(context) {
+                                        return `${context.dataset.label}: ${context.raw.y.toFixed(4)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'linear', // 明确指定X轴为线性类型
+                                title: {
+                                    display: true,
+                                    text: '波长 (nm)'
+                                },
+                                grid: {
+                                    display: true,
+                                    color: 'rgba(0, 0, 0, 0.05)'
+                                },
+                                min: datasets.length > 0 ? Math.min(...datasets.flatMap(ds => ds.data.map(p => p.x))) : undefined,
+                                max: datasets.length > 0 ? Math.max(...datasets.flatMap(ds => ds.data.map(p => p.x))) : undefined,
+                                ticks: {
+                                    autoSkip: true,
+                                    maxTicksLimit: 10
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: '吸光度'
+                                },
+                                grid: {
+                                    display: true,
+                                    color: 'rgba(0, 0, 0, 0.05)'
+                                },
+                                min: 0,
+                                beginAtZero: true
+                            }
+                        },
+                        parsing: {
+                            xAxisKey: 'x',
+                            yAxisKey: 'y'
+                        }
+                    }
+                });
+                
+                // 清空现有图表实例并保存新实例
+                charts = [];
+                charts.push(chartInstance);
+                
+                console.log('合并图表绘制成功！');
+                showMessage('光谱曲线对比图绘制成功', 'success');
+            } catch (error) {
+                console.error('绘制图表时出错：', error);
+                showMessage('绘制光谱曲线失败：' + error.message, 'error');
+            }
+        }
+        
+        /**
+         * 更新数据信息
+         */
+        function updateDataInfo() {
+            // 清空数据信息容器
+            const dataInfoContainer = document.getElementById('dataInfoContainer');
+            dataInfoContainer.innerHTML = '';
+            
+            // 验证数据完整性
+            if (!Array.isArray(spectrumData) || spectrumData.length === 0) {
+                console.warn('光谱数据数组为空，无法更新数据信息');
+                return;
+            }
+            
+            // 创建表格
+            const table = document.createElement('table');
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>序号</th>
+                        <th>文件名</th>
+                        <th>浓度</th>
+                        <th>波长范围</th>
+                    </tr>
+                </thead>
+                <tbody id="dataInfoTableBody"></tbody>
+            `;
+            
+            const tbody = table.querySelector('#dataInfoTableBody');
+            
+            // 为每个文件生成表格行
+            spectrumData.forEach((fileData, fileIndex) => {
+                console.log(`处理文件 ${fileIndex + 1} 的数据信息：`, fileData);
+                
+                // 验证单个文件数据完整性
+                if (!fileData.wavelengths || fileData.wavelengths.length === 0) {
+                    console.warn(`文件 ${fileIndex + 1} 数据不完整，跳过数据信息生成`);
+                    return;
+                }
+                
+                // 计算波长范围
+                const minWavelength = Math.min(...fileData.wavelengths);
+                const maxWavelength = Math.max(...fileData.wavelengths);
+                
+                // 生成表格行
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${fileData.index}</td>
+                    <td>${fileData.filename}</td>
+                    <td>${fileData.concentration}</td>
+                    <td>${minWavelength} - ${maxWavelength} nm</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+            
+            // 添加到数据信息容器
+            dataInfoContainer.appendChild(table);
+        }
+        
+        /**
+         * 查询指定波长的吸光度
+         */
+        function queryWavelength() {
+            const wavelengthInput = document.getElementById('wavelengthInput');
+            const wavelength = parseFloat(wavelengthInput.value);
+            
+            if (isNaN(wavelength)) {
+                showMessage('请输入有效的波长值', 'error');
+                return;
+            }
+            
+            if (!Array.isArray(spectrumData) || spectrumData.length === 0) {
+                showMessage('请先导入光谱数据', 'error');
+                return;
+            }
+            
+            // 准备查询结果
+            const resultsBody = document.getElementById('resultsBody');
+            resultsBody.innerHTML = '';
+            
+            // 遍历所有文件数据
+            spectrumData.forEach((fileData, fileIndex) => {
+                if (!fileData.wavelengths || fileData.wavelengths.length === 0) {
+                    console.warn(`文件 ${fileIndex + 1} 数据不完整，跳过查询`);
+                    return;
+                }
+                
+                // 查找最接近的波长索引
+                const wavelengths = fileData.wavelengths;
+                const index = findNearestIndex(wavelengths, wavelength);
+                const actualWavelength = wavelengths[index];
+                
+                // 获取吸光度值
+                const absorbance = fileData.absorbance[index];
+                
+                // 添加结果行
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${fileData.filename}</td>
+                    <td>${fileData.concentration}</td>
+                    <td>${actualWavelength.toFixed(2)} nm</td>
+                    <td>${absorbance !== null ? absorbance.toFixed(4) : '-'}</td>
+                `;
+                resultsBody.appendChild(row);
+            });
+            
+            // 显示结果区域
+            document.getElementById('resultsSection').style.display = 'block';
+            
+            // 显示查询信息
+            showMessage(`查询波长：${wavelength} nm`, 'success');
+        }
+        
+        /**
+         * 查找最接近的数值索引
+         * @param {Array} array - 数值数组
+         * @param {number} value - 目标值
+         * @returns {number} - 最接近值的索引
+         */
+        function findNearestIndex(array, value) {
+            return array.reduce((prev, curr, index) => {
+                return Math.abs(curr - value) < Math.abs(array[prev] - value) ? index : prev;
+            }, 0);
+        }
+        
+        /**
+         * 清除所有数据
+         */
+        function clearAllData() {
+            try {
+                // 清空数据数组
+                spectrumData = [];
+                charts = [];
+                previewDataList = [];
+                predictionCurves = [];
+                allSelectedFiles = [];
+                processedFileIds.clear();
+                
+                // 清空文件输入
+                const fileInput = document.getElementById('fileInput');
+                fileInput.value = '';
+                
+                // 清空文件信息
+                const fileInfo = document.getElementById('fileInfo');
+                const fileList = document.getElementById('fileList');
+                fileInfo.style.display = 'none';
+                fileList.style.display = 'none';
+                
+                // 清空浓度设置区域
+                const concentrationSection = document.getElementById('concentrationSection');
+                concentrationSection.style.display = 'none';
+                const concentrationInputs = document.getElementById('concentrationInputs');
+                concentrationInputs.innerHTML = '';
+                
+                // 清空数据信息
+                const dataInfoContainer = document.getElementById('dataInfoContainer');
+                dataInfoContainer.innerHTML = '';
+                
+                // 清空图表
+                const chartsContainer = document.getElementById('chartsContainer');
+                chartsContainer.innerHTML = '';
+                
+                // 清空查询结果
+                const resultsSection = document.getElementById('resultsSection');
+                resultsSection.style.display = 'none';
+                const resultsBody = document.getElementById('resultsBody');
+                resultsBody.innerHTML = '';
+                
+                // 清空波长输入
+                const wavelengthInput = document.getElementById('wavelengthInput');
+                wavelengthInput.value = '';
+                
+                // 清空localStorage
+                localStorage.removeItem('disinfectantSpectrumData');
+                console.log('已清除localStorage中的数据');
+                
+                console.log('所有数据已清除');
+                showMessage('所有数据已清除', 'success');
+            } catch (error) {
+                console.error('清除数据时出错：', error);
+                showMessage('清除数据失败：' + error.message, 'error');
+            }
+        }
+        
+        /**
+         * 显示消息
+         * @param {string} message - 消息内容
+         * @param {string} type - 消息类型 ('success', 'error', 'info')
+         */
+        function showMessage(message, type) {
+            // 创建消息元素
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type;
+            messageDiv.textContent = message;
+            
+            // 添加到容器顶部
+            const container = document.querySelector('.container');
+            container.insertBefore(messageDiv, container.firstChild);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 3000);
+        }
+        
+        // 添加info消息类型的样式
+        const style = document.createElement('style');
+        style.textContent = `
+            .info {
+                background-color: #3498db;
+                color: white;
+                padding: 10px;
+                border-radius: 5px;
+                margin: 10px 0;
+            }
+        `;
+        document.head.appendChild(style);
+        
+        /**
+         * 保存数据到localStorage
+         */
+        function saveDataToLocalStorage() {
+            try {
+                // 只保存必要的数据，避免保存无法序列化的File对象
+                const dataToSave = {
+                    spectrumData: spectrumData,
+                    predictionCurves: predictionCurves
+                };
+                localStorage.setItem('disinfectantSpectrumData', JSON.stringify(dataToSave));
+                console.log('数据已保存到localStorage');
+            } catch (error) {
+                console.error('保存数据到localStorage失败：', error);
+                showMessage('保存数据失败，请确保浏览器支持localStorage', 'error');
+            }
+        }
+        
+        /**
+         * 从localStorage加载数据
+         */
+        function loadDataFromLocalStorage() {
+            try {
+                const savedData = localStorage.getItem('disinfectantSpectrumData');
+                if (savedData) {
+                    const parsedData = JSON.parse(savedData);
+                    if (parsedData.spectrumData) {
+                        spectrumData = parsedData.spectrumData;
+                        console.log('已从localStorage加载光谱数据');
+                    }
+                    if (parsedData.predictionCurves) {
+                        predictionCurves = parsedData.predictionCurves;
+                        console.log('已从localStorage加载预测曲线数据');
+                    }
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('从localStorage加载数据失败：', error);
+                showMessage('加载数据失败，可能是数据格式错误', 'error');
+                return false;
+            }
+        }
+        
+        // 页面加载完成后从localStorage加载数据
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('页面加载完成，检查localStorage');
+            
+            // 初始化文件输入监听器
+            initFileInputListener();
+            
+            const hasData = loadDataFromLocalStorage();
+            if (hasData) {
+                // 更新UI
+                drawSpectrumChart();
+                updateDataInfo();
+                showMessage('已自动加载上次处理的数据', 'success');
+            }
+        });
+    </script>
+</body>
+</html>
